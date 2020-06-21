@@ -1,38 +1,19 @@
 import numpy as np
-import tqdm
+import functions as f
 
-
-class Functions:
-    """TODO: Put this in a separate module"""
-    @staticmethod
-    def he_initialize(shape):
-        he = np.random.normal(loc=0, scale=np.sqrt(1 / shape[0]))
-        return he * np.random.randn(*shape)
-
-    @staticmethod
-    def set_bias_as_weight(shape):
-        return shape[0] + 1, shape[1]
-
-    @staticmethod
-    def add_bias(vector):
-        return np.hstack([vector, np.ones((vector.shape[0], 1))])
-
-    @staticmethod
-    def sigmoid(z):
-        return 1 / (1 + np.exp(-z))
-
-
-f = Functions
+np.random.seed(10)
 
 
 class NeuralNet:
 
-    __slots__ = ["layer_shapes", "hyper_params", "layers", "lr"]
+    __slots__ = ["layer_shapes", "layers", "lr", "__fitted_once"]
 
     def __init__(self, layer_shapes):
         self.layer_shapes = [f.set_bias_as_weight(w) for w in layer_shapes]
+        print(self.layer_shapes)
         self.layers = self.init_weights("he")
         self.lr = 0.002
+        self.__fitted_once = False
 
     def init_weights(self, method="he"):
         """TODO: Support Xavier, Uniform, Normal, etc."""
@@ -46,6 +27,9 @@ class NeuralNet:
     def _forward_layer_pass(layer_weights, vector):
         """Forward Propagation over a specific Layer and Vector"""
         return f.sigmoid(np.dot(f.add_bias(vector), layer_weights))
+
+    def _restart_weights(self):
+        self.layers = self.init_weights("he")
 
     def compute_forward_propagation(self, x):
         """Compute Full Forward Propagation"""
@@ -66,9 +50,9 @@ class NeuralNet:
         forwards = self.compute_forward_propagation(x)
 
         # Compute error in output layer
-        d = self.compute_output_layer_error(forwards[-1], y_true)
+        error = d = self.compute_output_layer_error(forwards[-1], y_true)
         wv = (1 / y_true.shape[0]) * np.dot(d.T, f.add_bias(forwards[-2]))
-        wvs = [wv.T]
+        wvs = [wv]
 
         # Compute weights variations based on error propagations
         for li in range(len(self.layers) - 1):
@@ -78,9 +62,13 @@ class NeuralNet:
             d = d[:, :-1]
             wv = (1 / m) * np.dot(d.T, f.add_bias(forwards[-li - 3]))
             wvs.insert(0, wv)
-        return wvs
+        return wvs, error
 
-    def train(self, x, y, epochs, batch_size):
+    def train(self, x, y, epochs, batch_size, learning_rate, stochastic=True):
+        if self.__fitted_once:
+            print("Restarting weights to randomized initialization...")
+            self._restart_weights()
+        self.lr = learning_rate
         y = y.reshape(-1, 1)
         m = x.shape[0]
         n_batches = int(np.ceil(m / batch_size))
@@ -90,14 +78,18 @@ class NeuralNet:
             batched_weights = []
             updated_weights = []
             accumulated_weights = [0] * len(self.layers)
+            accumulated_error = []
+            if stochastic:
+                x, y = f.shuffle_vectors(x, y)
 
-            for n in tqdm.tqdm(range(n_batches)):
+            for n in range(n_batches):
                 # Get X and Y batches
                 _x_batch = x[n * batch_size: (n + 1) * batch_size, :]
                 _y_batch = y[n * batch_size: (n + 1) * batch_size]
 
                 # Calculate backward propagation
-                wvs = self.compute_backward_propagation(_x_batch, _y_batch)
+                wvs, error = self.compute_backward_propagation(_x_batch, _y_batch)
+                accumulated_error.append(error.mean())
                 batched_weights.append(wvs)
 
             for bw in range(len(batched_weights)):
@@ -105,7 +97,17 @@ class NeuralNet:
                 for wm in range(len(batched_weights[bw])):
                     accumulated_weights[wm] += batched_weights[bw][wm]
 
+            mean_weight_vars = []
             for weights, wv in zip(self.layers, accumulated_weights):
-                weights = weights - self.lr * wv.T
-                updated_weights.append(weights)
+                weights_ = weights - self.lr * wv.T
+                mean_weight_vars.append(wv)
+                updated_weights.append(weights_)
+
+            self.__fitted_once == True
             self.layers = updated_weights
+
+            error_avg = round(np.array(accumulated_error).mean(), 9)
+            wvar = [round(np.array(mwv).mean(), 9) for mwv in mean_weight_vars]
+
+            epoch_msg = f"""Epoch {epoch} | Error: {error_avg} | WV0: {wvar[0]} | WV1: {wvar[1]}"""
+            print(epoch_msg)
