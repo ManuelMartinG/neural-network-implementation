@@ -88,7 +88,8 @@ class NeuralNet:
                 _y_batch = y[n * batch_size: (n + 1) * batch_size]
 
                 # Calculate backward propagation
-                wvs, error = self.compute_backward_propagation(_x_batch, _y_batch)
+                wvs, error = self.compute_backward_propagation(
+                    _x_batch, _y_batch)
                 accumulated_error.append(error.mean())
                 batched_weights.append(wvs)
 
@@ -103,7 +104,7 @@ class NeuralNet:
                 mean_weight_vars.append(wv)
                 updated_weights.append(weights_)
 
-            self.__fitted_once == True
+            self.__fitted_once = True
             self.layers = updated_weights
 
             error_avg = round(np.array(accumulated_error).mean(), 9)
