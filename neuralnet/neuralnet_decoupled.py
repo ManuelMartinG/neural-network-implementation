@@ -38,6 +38,7 @@ class LayersChain():
     def __len__(self):
         return len(self.chain)
 
+    @property
     def weights(self):
         return [l.weights for l in self.chain]
 
@@ -60,8 +61,8 @@ class OptimizationHistory:
     def add_error(self, error):
         self.mean_error_per_epoch.append(error)
 
-    def add_weigth_diff(self, weight_diff):
-        self.weight_variations_per_epoch.append(weight_diff)
+    def add_weigth_diff(self, epoch, weight_diff):
+        self.weight_variations_per_epoch[epoch].append(weight_diff)
 
 
 class NeuralNet:
@@ -86,13 +87,13 @@ class NeuralNet:
         return LayersChain(layers)
 
     def forward_propagation(self, x):
-        layer_outputs = []
+        layer_outputs = [x]
         for layer in self.layers:
             x = layer.forward(x)
             layer_outputs.append(x)
         return layer_outputs
 
-    def output_error(ypred, ytrue):
+    def output_error(self, ypred, ytrue):
         delta = (ypred - ytrue) * ypred * (1 - ypred)
         return delta
 
@@ -113,14 +114,16 @@ class NeuralNet:
             layer_weights_diff = (1/m) * np.dot(
                 delta.T, f.add_bias(forwards[-layer_pos - 3])
             )
-            all_weights_diff.append(layer_weights_diff)
+            all_weights_diff.insert(0, layer_weights_diff)
         return all_weights_diff, error
 
     @staticmethod
-    def show_progress(epoch, error, weight_diffs, show_after=5):
-        epoch_msg = f"""Epoch {epoch} | Error: {error} | WV0: {weight_diffs[0]} | WV1: {weight_diffs[1]}"""
+    def show_progress(epoch, error_avg, weight_diffs, show_after=5):
         if epoch % show_after == 0:
-            print(epoch_msg)
+            print(f"Epoch {epoch} |" +
+                  f"Error: {error_avg} |" +
+                  f" WV0: {weight_diffs[0]} | " +
+                  f"WV1: {weight_diffs[1]}")
 
     def validate_optimization_arguments(self, **kwargs):
         for arg in self.training_mandatory_arguments:
@@ -133,7 +136,8 @@ class NeuralNet:
         m = x.shape[0]
         batch_size = kwargs["batch_size"]
         n_batches = int(np.ceil(m / batch_size))
-
+        self.ophist.weight_variations_per_epoch = [0] * epochs
+        
         for epoch in range(epochs):
             batched_weights = []
             updated_weights = []
@@ -157,18 +161,18 @@ class NeuralNet:
             for bw in range(len(batched_weights)):
                 for wm in range(len(batched_weights[bw])):
                     accumulated_weights[wm] += batched_weights[bw][wm]
-
+            
+            self.ophist.weight_variations_per_epoch[epoch] = []
             for weights, weights_diff in zip(self.layers.weights, accumulated_weights):
-                new_weights = weights - \
-                    kwargs["learning_rate"] * weights_diff.T
-                self.ophist.add_weigth_diff(new_weights)
+                new_weights = weights - kwargs["learning_rate"] * weights_diff.T
+                self.ophist.add_weigth_diff(epoch, weights_diff)
                 updated_weights.append(new_weights)
 
             self.layers.update_weights(updated_weights)
 
             error_avg = round(
                 np.array(self.ophist.mean_error_per_epoch).mean(), 9)
-            wvar = [round(np.array(mwv).mean(), 9) for mwv in self.ophist.weight_variations_per_epoch]
+            wvar = [round(np.array(mwv).mean(), 9) for mwv in self.ophist.weight_variations_per_epoch[epoch]]
 
             self.show_progress(
                 epoch=epoch, error_avg=error_avg, weight_diffs=wvar,
