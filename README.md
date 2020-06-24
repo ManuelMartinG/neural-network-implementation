@@ -11,6 +11,7 @@ A Neural Network implementation using `numpy` :octocat:
 - He-Normal weights initialization
 - Batch Stochastic gradient descent
 - MSE cost function
+- Optimization progression plot option during training
 
 ##### Backlog of features
 - Gradient Checking
