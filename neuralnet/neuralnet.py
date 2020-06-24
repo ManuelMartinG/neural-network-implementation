@@ -1,70 +1,8 @@
 import numpy as np
-import time
+
 import neuralnet.functions as f
-
-try:
-    import matplotlib.pyplot as plt
-    from IPython import display
-    pass
-except Exception as ex:
-    ImportError(ex)
-
-
-class FullyConnectedLayer:
-    def __init__(self, shape_in, shape_out, activation):
-        self.shape = (shape_in, shape_out)
-
-        if activation == "sigmoid":
-            self.activation = f.sigmoid
-        else:
-            raise ValueError(f"""{activation} not currently supported.
-                             Try with `sigmoid`""")
-
-        self.weights = None  # To be initialized by NeuralNet
-
-    def initialize_weights(self, method="he"):
-        if method == "he":
-            self.weights = f.he_initialize(self.shape)
-        else:
-            raise ValueError("Only supported He-Normal method")
-
-    def forward(self, x):
-        z = np.dot(f.add_bias(x), self.weights)
-        return self.activation(z)
-
-    def backpropagate(self):
-        pass
-
-
-class LayersChain():
-    def __init__(self, layers_list):
-        self.chain = layers_list
-
-    def __repr__(self):
-        repr = "Neural Network Architecture\n" + \
-               "===========================\n\n"
-        for i, layer in enumerate(self.chain):
-            layer_name = layer.__class__.__name__
-            shapes = layer.shape
-            repr += f"\n> Layer {i} - {layer_name} ({shapes[0]}, {shapes[1]})\n"
-        return repr
-
-    def __getitem__(self, index):
-        return self.chain[index]
-
-    def __len__(self):
-        return len(self.chain)
-
-    @property
-    def weights(self):
-        return [l.weights for l in self.chain]
-
-    def update_weights(self, new_weights):
-        new_chain = []
-        for layer, new_weights in zip(self.chain, new_weights):
-            layer.weights = new_weights
-            new_chain.append(layer)
-        self.chain = new_chain
+from neuralnet.layers import FullyConnectedLayer, LayersChain
+from neuralnet.plotter import TrainingVisuals
 
 
 class OptimizationHistory:
@@ -82,41 +20,9 @@ class OptimizationHistory:
         self.weight_variations_per_epoch[epoch].append(weight_diff)
 
 
-class OptimizationVisuals:
-
-    def __init__(self, x, y):
-        self. n = 256
-        self.xmin = x.min()
-        self.xmax = x.max()
-        self.ymin = y.min()
-        self.ymax = y.max()
-        self.x = np.linspace(self.xmin, self.xmax, self.n)
-        self.y = np.linspace(self.ymin, self.ymax, self.n)
-        self.X, self.Y = np.meshgrid(self.x, self.y)
-        self.positions = np.hstack(
-            [self.X.flatten().reshape(-1, 1),
-             self.Y.flatten().reshape(-1, 1)])
-
-    def print_mesh(self, forward_prop_function):
-        Z = forward_prop_function(self.positions)[-1]
-        print(Z.mean())
-        plt.gca().cla()
-        plt.xlim((self.xmin, self.xmax))
-        plt.ylim((self.ymin, self.ymax))
-        plt.pcolormesh(self.X, self.Y, Z.reshape(256, 256), cmap=plt.cm.viridis)
-        display.clear_output(wait=True)
-        display.display(plt.gcf())
-        time.sleep(0.001)
-
-    def decision_function_subplots(self):
-        # TODO: Mostrar sólo 6 subplots dividiendo las epochs entre 6. Si hay menos epochs, se muestran
-        # todas las que haya (pares)
-        pass
-
-
 class NeuralNet:
 
-    def __init__(self, layer_shapes):
+    def __init__(self, layer_shapes, **kwargs):
         self._no_bias_layer_shapes = layer_shapes
         self.layer_shapes = self._get_biased_absorbed_shapes(
                 self._no_bias_layer_shapes)
@@ -124,6 +30,11 @@ class NeuralNet:
         self.ophist = self._set_optim_history()
         self.training_mandatory_arguments = ["learning_rate", "batch_size"]
         self.__fitted__ = False
+
+        self._handle_kwargs(**kwargs)
+
+    def _handle_kwargs(self, **kwargs):
+        self.visual_mode = kwargs.get("visual_mode", False)
 
     def _set_optim_history(self):
         return OptimizationHistory(activate_mesh_history=True)
@@ -193,9 +104,7 @@ class NeuralNet:
         # Validate input parameters and restart state if needed
         self.validate_optimization_arguments(**kwargs)
         self._maybe_init_for_re_run()
-        ovisuals = OptimizationVisuals(x=x[:, 0], y=x[:, 1])
 
-        # Set training parameters
         y = y.reshape(-1, 1)
         m = x.shape[0]
         learning_rate = kwargs.get("learning_rate", 0.002)
@@ -203,6 +112,9 @@ class NeuralNet:
         n_batches = int(np.ceil(m / batch_size))
         progess_cadence = kwargs.get("show_after", 10)
         self.ophist.weight_variations_per_epoch = [0] * epochs
+
+        if self.visual_mode:
+            visuals = TrainingVisuals(self.visual_mode, x=x[:, 0], y=x[:, 1])
 
         for epoch in range(epochs):
             batched_weights = []
@@ -242,13 +154,14 @@ class NeuralNet:
             self.layers.update_weights(updated_weights)
             self.__fitted__ = True
 
-            if kwargs.get("visuals", True):
-                ovisuals.print_mesh(self.forward_propagation)
+            if self.visual_mode:
+                visuals.plot(self.forward_propagation)
 
             error_avg = round(np.array(self.ophist.mean_error_per_epoch).mean(), 9)
             wvar = [round(np.array(mwv).mean(), 9) for mwv in self.ophist.weight_variations_per_epoch[epoch]]
 
             self.show_progress(epoch=epoch, error_avg=error_avg,
                                weight_diffs=wvar, show_after=progess_cadence)
-        if kwargs.get("visuals", True):
-            plt.show()
+        if self.visual_mode:
+            pass
+            #visuals.render()
