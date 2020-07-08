@@ -4,6 +4,10 @@ A Neural Network implementation using `numpy` :octocat:
 
 > Created for my own learning purposes mainly.
 
+![alt text](docs/images/decision-function-plotter.png)
+
+
+
 ##### Currently Supported
 - Vectorized backpropagation
 - Sigmoid activation
