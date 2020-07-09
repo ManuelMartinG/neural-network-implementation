@@ -4,7 +4,7 @@ A Neural Network implementation using **only** `numpy`! :octocat:
 
 This is a project created for my own learning purposes. The main goal is to build a library for neural network training and optimization, but with a focus on understanding how they estimate weights and how different techniques affect those estimations.
 
-Some examples on the usage can be cound on [`/examples/`](@https://github.com/next-manuelmartin5/neural-network-implementation/tree/feature/add-cost-functions/examples) directory.
+Some examples on the usage can be cound on [/examples/](@https://github.com/next-manuelmartin5/neural-network-implementation/tree/feature/add-cost-functions/examples) directory.
 
 ![alt text](docs/images/decision-function-plotter.png)
 
