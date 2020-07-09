@@ -8,10 +8,11 @@ Some examples on the usage can be cound on [/examples/](https://github.com/next-
 
 
 **Neural Network definition example**
-![alt text](docs/images/nn-defintion-and-optimization.png)
+
+![def](docs/images/nn-defintion-and-optimization.png)
 
 **Decision Function Plotting example**
-![alt text](docs/images/decision-function-plotter.png)
+![plot](docs/images/decision-function-plotter.png)
 
 
 ##### Currently Supported
