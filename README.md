@@ -1,8 +1,10 @@
 # NeuralNet
 
-A Neural Network implementation using `numpy` :octocat:
+A Neural Network implementation using `numpy`! :octocat:
 
-> Created for my own learning purposes mainly.
+This is a project created for my own learning purposes mainly for building neural networks.
+
+Some examples on the usage can be cound on [`/examples/`](@https://github.com/next-manuelmartin5/neural-network-implementation/tree/feature/add-cost-functions/examples) directory.
 
 ![alt text](docs/images/decision-function-plotter.png)
 
@@ -14,13 +16,15 @@ A Neural Network implementation using `numpy` :octocat:
 - Multilayer NN
 - He-Normal weights initialization
 - Batch Stochastic gradient descent
-- MSE cost function
+- MSE loss
+- Cross Entropy loss
 - Optimization progression plot option during training
+- Return History of error and weights change
 
 ##### Backlog of features
 - Gradient Checking
 - Validation set evaluation during Training
-- Return History of error and weights change
+
 - Softmax and ReLu activations
 - Dropout and Early Stopping
 - Automatic differentiation for agnostic cost functions
