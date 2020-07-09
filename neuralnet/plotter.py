@@ -1,10 +1,8 @@
 import numpy as np
-import time
 
 try:
     from IPython import display
     import matplotlib.pyplot as plt
-    import numpy as np
 except ImportError:
     raise ImportError("IPython and matplotlib are not managed dependencies."
                       + " If you want to use this visualization module,"
@@ -22,7 +20,8 @@ def plot_decision_function(x1, x2, neuralnet):
     plt.pcolormesh(X1, X2, Z, cmap=plt.cm.Spectral)
 
 
-def plot_error_history(error_per_epoch, c="salmon", linewidth=0.6, linestyle="-"):
+def plot_error_history(error_per_epoch, c="salmon",
+                       linewidth=0.6, linestyle="-"):
     plt.plot(error_per_epoch, c=c, linewidth=linewidth, linestyle=linestyle)
 
 
@@ -58,7 +57,7 @@ class SubPlot2D:
         self.plot_error_decrease(axs[1], acc_error, acc_epoch)
 
         fig.suptitle("Training Evolution")
-        #plt.show();
+        # plt.show();
 
 
 class GifVisuals:
