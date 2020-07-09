@@ -6,6 +6,11 @@ This is a project created for my own learning purposes. The main goal is to buil
 
 Some examples on the usage can be cound on [/examples/](https://github.com/next-manuelmartin5/neural-network-implementation/tree/feature/add-cost-functions/examples) directory.
 
+
+**Neural Network definition example**
+![alt text](docs/images/nn-defintion-and-optimization.png)
+
+**Decision Function Plotting example**
 ![alt text](docs/images/decision-function-plotter.png)
 
 
