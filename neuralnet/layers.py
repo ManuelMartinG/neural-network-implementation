@@ -39,7 +39,8 @@ class LayersChain():
         for i, layer in enumerate(self.chain):
             layer_name = layer.__class__.__name__
             shapes = layer.shape
-            repr += f"\n> Layer {i} - {layer_name} ({shapes[0]}, {shapes[1]})\n"
+            repr += f"\n> Layer {i} - {layer_name}" + \
+                    f"({shapes[0]}, {shapes[1]})\n"""
         return repr
 
     def __getitem__(self, index):
