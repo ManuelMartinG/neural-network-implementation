@@ -2,10 +2,15 @@ import numpy as np
 
 import neuralnet.functions as f
 from neuralnet.layers import FullyConnectedLayer, LayersChain
-from neuralnet.plotter import TrainingVisuals
+import neuralnet.plotter as plotter
 
 
 class OptimizationHistory:
+    # TODO: This class should clean itself or pass a garbage collector
+    # Because the vectors stored here are too big
+
+    # IDEA: Would be nice also to save data that OptimizationHistoty gathers
+    # in a mmap or temporal file locally to avoid so much memory overhead.
     def __init__(self, activate_mesh_history=False):
         self.mean_error_per_epoch = []
         self.weight_variations_per_epoch = []
@@ -18,6 +23,9 @@ class OptimizationHistory:
 
     def add_weigth_diff(self, epoch, weight_diff):
         self.weight_variations_per_epoch[epoch].append(weight_diff)
+
+    def plot_error(self, **kwargs):
+        plotter.plot_error_history(self.mean_error_per_epoch, **kwargs)
 
 
 class NeuralNet:
@@ -35,6 +43,7 @@ class NeuralNet:
 
     def _handle_kwargs(self, **kwargs):
         self.visual_mode = kwargs.get("visual_mode", False)
+        self.cost_function = kwargs.get("cost_function", f.cross_entropy)
 
     def _set_optim_history(self):
         return OptimizationHistory(activate_mesh_history=True)
@@ -63,27 +72,28 @@ class NeuralNet:
         return layer_outputs
 
     def output_error(self, ypred, ytrue):
-        delta = (ypred - ytrue) * ypred * (1 - ypred)
+        # delta = (ypred - ytrue) * ypred * (1 - ypred)
+        delta = self.cost_function(ypred=ypred, ytrue=ytrue)
         return delta
 
     def backward_propagation(self, x, ytrue):
         m = x.shape[0]
         forwards = self.forward_propagation(x)
-
+        
         # Get error on Output Layer (last layer)
-        error = delta = self.output_error(forwards[-1], ytrue)
+        error = delta = self.output_error(ypred=forwards[-1], ytrue=ytrue)
         output_weights_diff = (1/m) * np.dot(delta.T, f.add_bias(forwards[-2]))
-
         all_weights_diff = [output_weights_diff]
 
         # Get error on Hidden Layers (all layers except last one)
         for layer_pos in range(len(self.layers) - 1):
             delta = np.dot(delta, self.layers[-layer_pos - 1].weights.T) *\
-                    f.add_bias(forwards[-layer_pos - 2]) * (1 - f.add_bias(forwards[-layer_pos - 2]))
-
+                    f.add_bias(forwards[-layer_pos - 2]) * (1 - f.add_bias(
+                        forwards[-layer_pos - 2]))
             delta = delta[:, :-1]  # Avoid propagate bias
 
-            layer_weights_diff = (1/m) * np.dot(delta.T, f.add_bias(forwards[-layer_pos - 3]))
+            layer_weights_diff = (1/m) * np.dot(delta.T, f.add_bias(
+                forwards[-layer_pos - 3]))
             all_weights_diff.insert(0, layer_weights_diff)
         return all_weights_diff, error
 
@@ -107,21 +117,28 @@ class NeuralNet:
 
         y = y.reshape(-1, 1)
         m = x.shape[0]
+
+        # Hyperparams
         learning_rate = kwargs.get("learning_rate", 0.002)
         batch_size = kwargs["batch_size"]
         n_batches = int(np.ceil(m / batch_size))
         progess_cadence = kwargs.get("show_after", 10)
+
+        # Initialize Optimization History
         self.ophist.weight_variations_per_epoch = [0] * epochs
 
         if self.visual_mode:
-            visuals = TrainingVisuals(self.visual_mode, x=x[:, 0], y=x[:, 1])
+            visuals = plotter.TrainingVisuals(
+                self.visual_mode, x=x[:, 0], y=x[:, 1])
 
         for epoch in range(epochs):
             batched_weights = []
+            mean_batch_error = []
             updated_weights = []
             accumulated_weights = [0] * len(self.layers)
 
-            # Shuffle samples for every epoch in order to perform stochastic optimization
+            # Shuffle samples for every epoch in order to perform
+            # stochastic optimization
             if kwargs.get("stochastic", True):
                 x, y = f.shuffle_vectors(x, y)
 
@@ -133,16 +150,18 @@ class NeuralNet:
                         x_batch, y_batch)
 
                 # Save Mean Error and Weight Variations
-                self.ophist.add_error(error.mean())
+                mean_batch_error.append(error.mean())
                 batched_weights.append(weights_diff)
 
-            # Sum up for each weight matrices, their respective diffs for each batch
+            # Sum up for each weight matrices, their respective diffs
+            # for each batch
             for bw in range(len(batched_weights)):
                 for wm in range(len(batched_weights[bw])):
                     accumulated_weights[wm] += batched_weights[bw][wm]
 
             self.ophist.weight_variations_per_epoch[epoch] = []
-            for weights, weights_diff in zip(self.layers.weights, accumulated_weights):
+            for weights, weights_diff in zip(self.layers.weights,
+                                             accumulated_weights):
                 new_weights = weights - learning_rate * weights_diff.T
 
                 # Save Weight differences applied
@@ -157,11 +176,13 @@ class NeuralNet:
             if self.visual_mode:
                 visuals.plot(self.forward_propagation)
 
-            error_avg = round(np.array(self.ophist.mean_error_per_epoch).mean(), 9)
-            wvar = [round(np.array(mwv).mean(), 9) for mwv in self.ophist.weight_variations_per_epoch[epoch]]
+            error_avg = round(np.array(mean_batch_error).mean(), 9)
+            self.ophist.add_error(error_avg)
+            wvar = [round(np.array(mwv).mean(), 9) for mwv
+                    in self.ophist.weight_variations_per_epoch[epoch]]
 
             self.show_progress(epoch=epoch, error_avg=error_avg,
                                weight_diffs=wvar, show_after=progess_cadence)
         if self.visual_mode:
             pass
-            #visuals.render()
+            # visuals.render()

@@ -1,5 +1,4 @@
 import numpy as np
-import time
 
 try:
     from IPython import display
@@ -10,34 +9,55 @@ except ImportError:
                       + " please, install them by yourself")
 
 
-class JupyterInline:
-    def __init__(self, x, y):
-        self. n = 256
-        self.xmin = x.min()
-        self.xmax = x.max()
-        self.ymin = y.min()
-        self.ymax = y.max()
-        print(self.xmin)
-        print(self.xmax)
-        # Create x and y space
-        self.x_space = np.linspace(self.xmin, self.xmax, self.n)
-        self.y_space = np.linspace(self.ymin, self.ymax, self.n)
+def plot_decision_function(x1, x2, neuralnet):
+    nums = 300
+    x1_ = np.linspace(x1.min(), x1.max(), nums)
+    x2_ = np.linspace(x2.min(), x2.max(), nums)
+    X1, X2 = np.meshgrid(x1_, x2_)
+    flat_mesh = np.hstack([X1.flatten().reshape(-1, 1),
+                          X2.flatten().reshape(-1, 1)])
+    Z = neuralnet.forward_propagation(flat_mesh)[-1].reshape(nums, nums)
+    plt.pcolormesh(X1, X2, Z, cmap=plt.cm.Spectral)
 
-        self.X_mesh, self.Y_mesh = np.meshgrid(self.x_space, self.y_space)
-        self.positions = np.hstack(
-            [self.X_mesh.flatten().reshape(-1, 1),
-             self.Y_mesh.flatten().reshape(-1, 1)])
 
-    def plot(self, forward_prop_function):
-        Z = forward_prop_function(self.positions)[-1]
-        plt.gca().cla()
-        plt.xlim((self.xmin, self.xmax))
-        plt.ylim((self.ymin, self.ymax))
-        plt.pcolormesh(self.X_mesh, self.Y_mesh, Z.reshape(
-            256, 256), cmap=plt.cm.Spectral)
+def plot_error_history(error_per_epoch, c="salmon",
+                       linewidth=0.6, linestyle="-"):
+    plt.plot(error_per_epoch, c=c, linewidth=linewidth, linestyle=linestyle)
+
+
+class SubPlot2D:
+    def __init__(self):
+        self.nums = 300
+
+    def make_mesh(self, x1, x2):
+        x1_ = np.linspace(x1.min(), x1.max(), self.nums)
+        x2_ = np.linspace(x2.min(), x2.max(), self.nums)
+        X1, X2 = np.meshgrid(x1_, x2_)
+        return X1, X2
+
+    def flat_forward(self, X1, X2, forward):
+        flat_mesh = np.hstack(
+            [X1.flatten().reshape(-1, 1),
+             X2.flatten().reshape(-1, 1)])
+        Z = forward(flat_mesh)[-1].reshape(self.nums, self.nums)
+        return Z
+
+    def plot_gradient_space(self, ax_subplot, X1, X2, Z):
+        ax_subplot.pcolormesh(X1, X2, Z, cmap=plt.cm.Spectral)
+
+    def plot_error_decrease(self, ax_subplot, errors, epochs):
+        ax_subplot.plot(epochs, errors, c="red")
+
+    def make_subplots(self, x1, x2, acc_error, acc_epoch, forward):
+        X1, X2 = self.make_mesh(x1, x2)
         display.clear_output(wait=True)
-        display.display(plt.gcf())
-        time.sleep(0.00001)
+        fig, axs = plt.subplots(2)
+        Z = self.flat_forward(X1, X2, forward)
+        self.plot_gradient_space(axs[0], X1, X2, Z)
+        self.plot_error_decrease(axs[1], acc_error, acc_epoch)
+
+        fig.suptitle("Training Evolution")
+        # plt.show();
 
 
 class GifVisuals:
@@ -47,14 +67,14 @@ class GifVisuals:
 
 class TrainingVisuals:
 
-    MODES = ["inline", "gif"]
+    MODES = ["SubPlot2D", "gif"]
 
     def __init__(self, mode, **kwargs):
         if mode not in self.MODES:
             raise ValueError(f"{mode} not supported")
 
-        if mode == "inline":
-            self.visuals = JupyterInline(**kwargs)
+        if mode == "SubPlot2D":
+            self.visuals = SubPlot2D(**kwargs)
         elif mode == "gif":
             self.visuals = GifVisuals(**kwargs)
 
